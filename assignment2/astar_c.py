@@ -60,7 +60,7 @@ def distance(start, end):
     Line = LineString([start, end])
     return Line.length
 
-def Astar(start, end):
+def Astar(start, end, C):
     start_Node = Node(None, start)
     end_node = Node(None, end)
     array_of_vertices.append(end)
@@ -87,16 +87,18 @@ def Astar(start, end):
         children = get_children(current_node)
 
         for child in children:
-
             if child.position in closed_list:
                 continue
             child.g = current_node.g + distance(current_node.position, child.position)
             child.h = distance(child.position, end)
             child.f = child.g + child.h
+            if child.f >= C:
+                continue
             for node in open_list:
                 if child.position == node.position and child.g > node.g:
                     continue
             open_list.append(child)
+    return None
 
 #------methods for shape creation -------------
 def createShape(coordinates):
@@ -129,10 +131,11 @@ while carryOn:
         pygame.draw.polygon(screen, BLACK, array_of_shapes[i], 3)
 
     # ----------generate goal path ---------------
-    for i in range(0, len(goal_path)):
-        if i < len(goal_path) - 1:
-            pygame.draw.line(screen, RED, goal_path[i], goal_path[i+1], 3)
-            i += 1
+    if goal_path != None:
+        for i in range(0, len(goal_path)):
+            if i < len(goal_path) - 1:
+                pygame.draw.line(screen, RED, goal_path[i], goal_path[i+1], 3)
+                i += 1
 
     # start label and point
     font3 = pygame.font.Font('freesansbold.ttf', 20)
@@ -146,7 +149,11 @@ while carryOn:
     pygame.draw.circle(screen, BLACK, goal_position, 5, 0)
 
     if not Astar_stop:
-        goal_path = Astar(start_position, goal_position)
+        print('input cost C: ')
+        C = float(input())
+        goal_path = Astar(start_position, goal_position, C)
+        if goal_path == None:
+            print('no solution found')
         Astar_stop = True
 
     pygame.display.flip()
