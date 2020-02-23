@@ -15,6 +15,7 @@ bright_RED = (255, 0, 0)
 size = (X, Y)
 screen = pygame.display.set_mode(size)
 
+
 class Environment:
     array_of_shapes = []
     array_of_vertices = []
@@ -51,31 +52,35 @@ class Environment:
         # insert new start and end here
         self.start_position = (100, 150)
         self.goal_position = (950, 500)
-        self.createShape([(200, 450), (550, 450), (550, 550), (200, 550)])  # shape A
-        self.createShape([(400, 225), (360, 400), (440, 400)])  # shape B
-        self.createShape([(585, 350), (605, 500), (670, 450)])  # shape C
-        self.createShape([(275, 390), (350, 260), (275, 160), (165, 275), (185, 375)])  # shape D
-        self.createShape([(470, 295), (475, 160), (555, 150), (625, 200)])  # shape E
-        self.createShape([(650, 175), (775, 175), (775, 400), (650, 400)])  # shape F
-        self.createShape([(725, 450), (725, 525), (795, 560), (860, 525), (860, 450), (800, 400)])  # shape G
-        self.createShape([(800, 200), (860, 165), (900, 200), (875, 415)])  # shape H
+        self.createShape([(200, 200), (300, 150), (350, 250), (200, 300)])  # shape A
+        self.createShape([(150, 350), (200, 450), (440, 400)])  # shape B
+        self.createShape([(400, 200), (500, 200), (500, 350), (400, 350)])  # shape C
+        self.createShape([(400, 520), (425, 450), (500, 400), (550, 500)])  # shape D
+        self.createShape([(575, 450), (550, 400), (555, 325), (725, 350)])  # shape E
+        self.createShape([(600, 150), (700, 150), (750, 200), (750, 250), (700, 300), (600, 300), (550, 250)])  # shape F
+        self.createShape([(650, 450), (750, 450), (850, 550), (600, 550)])  # shape G
+        self.createShape([(800, 450), (800, 200), (900, 200), (855, 300), (900, 350)])  # shape H
 
     def switch_env(self, choice):
         if choice == 'a':
+            self.array_of_vertices = []
+            self.array_of_shapes = []
             self.environment1()
         elif choice == 'b':
+            self.array_of_vertices = []
+            self.array_of_shapes = []
             self.environment2()
 
     def draw_env(self):
         # start label and point
         font3 = pygame.font.Font('freesansbold.ttf', 20)
         start_text = font3.render('Start', True, BLACK, WHITE)
-        screen.blit(start_text, (50, 515))
+        screen.blit(start_text, (self.start_position[0] - 50, self.start_position[1]))
         pygame.draw.circle(screen, BLACK, self.start_position, 5, 0)
 
         # end label and point
         end_text = font3.render('End', True, BLACK, WHITE)
-        screen.blit(end_text, (955, 180))
+        screen.blit(end_text, (self.goal_position[0] + 5, self.goal_position[1]))
         pygame.draw.circle(screen, BLACK, self.goal_position, 5, 0)
         for i in range(0, len(self.array_of_shapes)):
             pygame.draw.polygon(screen, BLACK, self.array_of_shapes[i], 3)
@@ -103,7 +108,9 @@ class Path:
         self.array_of_vertices = vertices
 
     def get_path(self, start, end, C):
+        # self.goal_path = []
         self.goal_path = self.Astar(start, end, C)
+        print(self.goal_path)
         return self.goal_path
 
     def crosses(self, shape, coord1, coord2):
@@ -112,7 +119,7 @@ class Path:
         if line.intersects(polygon):
             if line.touches(polygon):
                 return False
-            elif line.crosses(polygon):
+            elif line.crosses(polygon) or polygon.contains(line):
                 return True
 
     def get_children(self, node):
@@ -184,8 +191,7 @@ class Path:
                     i += 1
         else:
             font = pygame.font.Font('freesansbold.ttf', 100)
-            screen.blit(font.render('No Solution Found', True, BLACK), (200, 250))
-
+            screen.blit(font.render('No Solution Found', True, BLACK), (150, 250))
 
 path_found = False
 choice = 'a'
@@ -222,22 +228,6 @@ while carryOn:
                 else:
                     text += event.unicode
     screen.fill(WHITE)
-
-    # ------------ grid lines ----------------
-    font = pygame.font.Font('freesansbold.ttf', 12)
-    for i in range(100, 1100, 100):
-        pygame.draw.line(screen, BLACK, [i, 0], [i, 600], 2)
-        text2 = font.render(str(i), True, BLACK, WHITE)
-        screen.blit(text2, (i, 585))
-    for i in range(50, 1100, 100):
-        pygame.draw.line(screen, BLACK, [i, 0], [i, 700], 1)
-        text2 = font.render(str(i), True, BLACK, WHITE)
-        screen.blit(text2, (i, 585))
-
-    for i in range(50, 600, 50):
-        pygame.draw.line(screen, BLACK, [0, i], [1100, i])
-        text2 = font.render(str(i), True, BLACK, WHITE)
-        screen.blit(text2, (0, i))
 
     font = pygame.font.Font('freesansbold.ttf', 30)
     pygame.draw.rect(screen, BLACK, (100, 0, 250, 100), 3)
@@ -300,6 +290,7 @@ while carryOn:
                     cost_input_flag = 2
                 else:
                     cost_input_flag = 0
+                    path = Path(env.array_of_shapes, env.array_of_vertices)
                     path.get_path(env.start_position, env.goal_position, cost)
                     path_found = True
         else:
@@ -311,7 +302,7 @@ while carryOn:
     screen.blit(font.render('B', True, BLACK, RED), (565, 55))
     screen.blit(font.render('quit', True, BLACK, RED), (950, 55))
     screen.blit(font.render('start', True, BLACK, GREEN), (725, 55))
-    screen.blit(font.render('stop', True, BLACK, RED), (840, 55))
+    screen.blit(font.render('reset', True, BLACK, RED), (840, 55))
 
     env.draw_env()
 
