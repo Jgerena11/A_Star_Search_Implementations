@@ -108,9 +108,7 @@ class Path:
         self.array_of_vertices = vertices
 
     def get_path(self, start, end, C):
-        # self.goal_path = []
         self.goal_path = self.Astar(start, end, C)
-        print(self.goal_path)
         return self.goal_path
 
     def crosses(self, shape, coord1, coord2):
