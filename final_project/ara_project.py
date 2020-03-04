@@ -19,25 +19,32 @@ class Environment:
     blocked_squares = []
 
     class Square:
+        x_coord = []
+        y_coord = []
         vertices = []
-        num = 0
         active = True
 
-        def __init__(self, vertices, num):
+        def __init__(self, vertices, x_coord, y_coord):
             self.vertices = vertices
-            self.num = num
+            self.x_axis = x_coord
+            self.y_axis = y_coord
 
     def generate(self):
+        y_coord = 1
         y = 100
         num = 0
         while y < 700:
             x = 0
+            x_coord = 1
             while x < 1000:
-                square = self.Square([(x, y), (x + 50, y), (x + 50, y + 50), (x, y + 50)], num)
+                points = [(x, y), (x + 50, y), (x + 50, y + 50), (x, y + 50)]
+                square = self.Square(points, x_coord, y_coord)
                 self.square_list.append(square)
                 num += 1
                 x += 50
+                x_coord += 1
             y += 50
+            y_coord += 1
 
         for i in range(0, int(len(self.square_list) / 2)):
             pick = random.choice(self.square_list)
