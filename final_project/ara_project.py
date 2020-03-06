@@ -10,15 +10,24 @@ Y = 700
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 200, 0)
+bright_GREEN = (0, 255, 0)
 RED = (200, 0, 0)
+bright_RED = (255, 0, 0)
 size = (X, Y)
 screen = pygame.display.set_mode(size)
 
 class Environment:
     square_list = []
+    active_squares = []
     blocked_squares = []
+    start = None
+    end = None
 
     class Square:
+        x1 = 0
+        x2 = 0
+        y1 = 0
+        y2 = 0
         x_coord = []
         y_coord = []
         vertices = []
@@ -26,6 +35,10 @@ class Environment:
 
         def __init__(self, vertices, x_coord, y_coord):
             self.vertices = vertices
+            self.x1 = vertices[0][0]
+            self.x2 = vertices[1][0]
+            self.y1 = vertices[0][1]
+            self.y2 = vertices[2][1]
             self.x_axis = x_coord
             self.y_axis = y_coord
 
@@ -62,9 +75,26 @@ class Environment:
         for i in range(0, len(self.blocked_squares)):
             pygame.draw.polygon(screen, BLACK, self.blocked_squares[i].vertices)
 
+        if self.start is not None:
+            pygame.draw.polygon(screen, GREEN, self.start.vertices)
+
+    def pick_start(self):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+        if click[0] == 1:
+            print('clicked')
+            for square in self.square_list:
+                if square.active:
+                    if square.x1 < mouse[0] < square.x2 and square.y1 < mouse[1] < square.y2:
+                        print(mouse)
+                        self.start = square
+                else:
+                    continue
+
 carryOn = True
 clock = pygame.time.Clock()
 env_generated = False
+start_picked = False
 env = Environment()
 
 while carryOn:
@@ -79,6 +109,11 @@ while carryOn:
         env_generated = True
     else:
         env.print_env()
+
+    if env.start is None:
+        env.pick_start()
+
+
 
     pygame.display.flip()
 
