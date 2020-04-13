@@ -59,7 +59,7 @@ class Environment:
             y += 50
             y_coord += 1
 
-        for i in range(0, int(len(self.square_list) / 2)):
+        for i in range(0, int(len(self.square_list) / 3)):
             pick = random.choice(self.square_list)
             pick.active = False
             self.blocked_squares.append(pick)
@@ -78,6 +78,9 @@ class Environment:
         if self.start is not None:
             pygame.draw.polygon(screen, GREEN, self.start.vertices)
 
+        if self.end is not None:
+            pygame.draw.polygon(screen, RED, self.end.vertices)
+
     def pick_start(self):
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
@@ -88,13 +91,103 @@ class Environment:
                     if square.x1 < mouse[0] < square.x2 and square.y1 < mouse[1] < square.y2:
                         print(mouse)
                         self.start = square
+                        return True
                 else:
                     continue
+
+    def pick_end(self):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+
+        if click[0] == 1:
+            print('clicked')
+            for square in self.square_list:
+                if square.active:
+                    if square.x1 < mouse[0] < square.x2 and square.y1 < mouse[1] < square.y2:
+                        if square == self.start:
+                            continue
+                        else:
+                            print(mouse)
+                            self.end = square
+                            return True
+                    else:
+                        continue
+
+class Node:
+    def __init__(self, parent, tile):
+        self.parent = parent
+        self.tile = tile
+        self.g = 0
+        self.h = 0
+        self.f = 0
+
+    def __lt__(self, other):
+        return self.f < other.f
+
+def improved_solution(open_list, w, G, end):
+    closed_list = []
+    path = []
+
+    while len(open_list) > 0:
+        current_node = heapq.heappop(open_list)
+        closed_list.append(current_node)
+
+        if G <= current_node.f:
+            return None
+
+        if current_node.tile == end:
+            path.append(current_node.position)
+            while current_node.parent != None:
+                current_node = current_node.parent
+                path.append(current_node.tile)
+            return path
+
+        children = get_children(current_node)
+        for child in children:
+            if child in closed_list:
+                continue
+            compute_cost(child)
+            if child not in open_list:
+
+
+
+def simplified_anytime_repairing(start, end, w, d):
+    G = 999999999999999
+    open_list = []
+    start_node = Node(None, start)
+
+    open_list.append(start_node)
+    heapq.heapify(open_list)
+
+    while len(open) > 0:
+        new_solution = improved_solution(open_list, w, G)
+
+
+def gui():
+    font = pygame.font.Font('freesansbold.ttf', 30)
+    pygame.draw.rect(screen, BLACK, (100, 0, 250, 100), 3)
+    #pygame.draw.rect(screen, BLACK, (400, 0, 250, 100), 3)
+    pygame.draw.rect(screen, BLACK, (625, 0, 350, 100), 3)
+
+    screen.blit(font.render('Controls', True, BLACK, WHITE), (720, 10))
+
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+
+    if 850 + 100 > mouse[0] > 850 and 50 + 40 > mouse[1] > 50:
+        pygame.draw.rect(screen, bright_RED, (850, 50, 100, 40))
+        if click[0] == 1:
+            pygame.quit()
+    else:
+        pygame.draw.rect(screen, RED, (850, 50, 100, 40))
+    screen.blit(font.render('quit', True, BLACK, RED), (875, 55))
+
 
 carryOn = True
 clock = pygame.time.Clock()
 env_generated = False
 start_picked = False
+end_picked = False
 env = Environment()
 
 while carryOn:
@@ -111,9 +204,14 @@ while carryOn:
         env.print_env()
 
     if env.start is None:
-        env.pick_start()
+        if env.pick_start():
+            continue
 
+    elif env.end is None:
+        if env.pick_end():
+            continue
 
+    gui()
 
     pygame.display.flip()
 
