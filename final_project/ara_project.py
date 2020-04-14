@@ -24,6 +24,8 @@ class Environment:
     end = None
 
     class Square:
+        reachable_tiles = []
+
         x1 = 0
         x2 = 0
         y1 = 0
@@ -58,6 +60,35 @@ class Environment:
                 x_coord += 1
             y += 50
             y_coord += 1
+
+        for tile in self.square_list:
+            temp = [(tile.x1, tile.y1), (tile.x2, tile.y1), (tile.x2, tile.y2), (tile.x1, tile.y2)]
+            right = [(tile.x1 + 50, tile.y1), (tile.x2 + 50, tile.y1), (tile.x2 + 50, tile.y2), (tile.x1 + 50, tile.y2)]
+            left = [(tile.x1 - 50, tile.y1), (tile.x2 - 50, tile.y1), (tile.x2 - 50, tile.y2), (tile.x1 - 50, tile.y2)]
+            up = [(tile.x1, tile.y1 - 50), (tile.x2, tile.y1 - 50), (tile.x2, tile.y2 - 50), (tile.x1, tile.y2 - 50)]
+            down = [(tile.x1, tile.y1 + 50), (tile.x2, tile.y1 + 50), (tile.x2, tile.y2 + 50), (tile.x1, tile.y2 + 50)]
+            lud = [(tile.x1 - 50, tile.y1 - 50), (tile.x2 - 50, tile.y1 - 50), (tile.x2 - 50, tile.y2 -50), (tile.x1 - 50, tile.y2 - 50)]
+            rud = [(tile.x1 + 50, tile.y1 - 50), (tile.x2 + 50, tile.y1 - 50), (tile.x2 + 50 , tile.y2 - 50), (tile.x1 + 50, tile.y2 - 50)]
+            lld = [(tile.x1 - 50, tile.y1 + 50), (tile.x2 - 50, tile.y1 + 50), (tile.x2 - 50, tile.y2 + 50), (tile.x1 - 50, tile.y2 + 50)]
+            rld = [(tile.x1 + 50, tile.y1 + 50), (tile.x2 + 50, tile.y1 + 50), (tile.x2 + 50, tile.y2 + 50), (tile.x1 + 50, tile.y2 + 50)]
+
+            for sqr in self.square_list:
+                if sqr.vertices == right:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.vertices == left:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.vertices == up:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.vertices == down:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.verties == lud:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.vertices == rud:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.vertices == lld:
+                    tile.reachable_tiles.append(sqr)
+                if sqr.vertices == rld:
+                    tile.reachable_tiles.append(sqr)
 
         for i in range(0, int(len(self.square_list) / 3)):
             pick = random.choice(self.square_list)
@@ -124,30 +155,50 @@ class Node:
     def __lt__(self, other):
         return self.f < other.f
 
+def get_children(parent_node):
+    children = []
+    tile = parent_node.tile
+    for t in tile.reachable_tiles:
+        if t.active:
+            node = Node(parent_node, t)
+            children.append(node)
+    return children
+
+
 def improved_solution(open_list, w, G, end):
-    closed_list = []
-    path = []
+    goal_path = []
 
     while len(open_list) > 0:
-        current_node = heapq.heappop(open_list)
-        closed_list.append(current_node)
+        current_node = heapq.heappop(open_list) # pop the node with lowest f(w)
 
         if G <= current_node.f:
-            return None
-
-        if current_node.tile == end:
-            path.append(current_node.position)
-            while current_node.parent != None:
-                current_node = current_node.parent
-                path.append(current_node.tile)
-            return path
-
-        children = get_children(current_node)
-        for child in children:
-            if child in closed_list:
-                continue
-            compute_cost(child)
+            return None # G is proven to be w admissible
+        for child in get_children(current_node):
+            for node in open_list:
+                if node.tile == child.tile:
+                    if child.f < G:
+                        if child.tile == end:
+                            goal_path.append(child.tile)
+                            node = child
+                            while node.parent is not None:
+                                node = node.parent
+                                goal_path.append(node.tile)
+                            return goal_path
+                        else:
+                            open_list.append(child)
             if child not in open_list:
+                if child.f < G:
+                    if child.tile == end:
+                        goal_path.append(child.tile)
+                        node = child
+                        while node.parent is not None:
+                            node = node.parent
+                            goal_path.append(node.tile)
+                        return goal_path
+                    else:
+                        open_list.append(child)
+    return None # no solution better than G exists
+
 
 
 
