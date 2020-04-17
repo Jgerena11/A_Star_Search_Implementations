@@ -2,6 +2,7 @@ import pygame
 import random
 from shapely.geometry import LinearRing, LineString, Point, Polygon
 import heapq
+import math
 import re
 
 pygame.init()
@@ -25,14 +26,12 @@ class Environment:
 
     class Square:
         reachable_tiles = []
-
         x1 = 0
         x2 = 0
         y1 = 0
         y2 = 0
-        x_coord = []
-        y_coord = []
         vertices = []
+        position = None
         active = True
 
         def __init__(self, vertices, x_coord, y_coord):
@@ -41,8 +40,7 @@ class Environment:
             self.x2 = vertices[1][0]
             self.y1 = vertices[0][1]
             self.y2 = vertices[2][1]
-            self.x_axis = x_coord
-            self.y_axis = y_coord
+            self.position = (x_coord, y_coord)
 
     def generate(self):
         y_coord = 1
@@ -144,6 +142,41 @@ class Environment:
                     else:
                         continue
 
+
+class Queue:
+    open_list = []
+    open_list.heapify()
+
+    def push(self, node):
+        heapq.heappush(self.open_list, node)
+
+    def pop(self, *nodes):
+        if len(nodes) == 0:
+            node = heapq.heappop(self.open_list)
+            return node
+        else:
+            node = self.get(nodes[0])
+            heapq.heappop(node)
+            return node
+
+    def update(self, child):
+        node = self.get(child)
+        heapq.heappop(node)
+        heapq.heapush(child)
+
+    def contains(self, child):
+        for node in self.open_list:
+            if node.position == child.position:
+                return True
+        return False
+
+    def get(self, child):
+        for node in self.open_list:
+            if node.position == child.position:
+                return node
+        return None
+
+
 class Node:
     def __init__(self, parent, tile):
         self.parent = parent
@@ -151,9 +184,29 @@ class Node:
         self.g = 0
         self.h = 0
         self.f = 0
+        self.position = tile.position
 
     def __lt__(self, other):
         return self.f < other.f
+
+
+def distance(pos1, pos2):
+    dx = pos2[0] - pos1[0]
+    dy = pos2[1] - pos1[1]
+    d = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
+    return d
+
+
+def cost_fw(node, w, end):
+    current_tile = node.parent.tile
+    child_tile = node.tile
+
+    g = distance(current_tile.position, child_tile.position)
+    h = distance(child_tile.position, end.position)
+    f = g + (w * h)
+
+    return f
+
 
 def get_children(parent_node):
     children = []
@@ -169,26 +222,15 @@ def improved_solution(open_list, w, G, end):
     goal_path = []
 
     while len(open_list) > 0:
-        current_node = heapq.heappop(open_list) # pop the node with lowest f(w)
+        current_node = open_list.pop # pop the node with lowest f(w)
 
         if G <= current_node.f:
             return None # G is proven to be w admissible
         for child in get_children(current_node):
-            for node in open_list:
-                if node.tile == child.tile:
-                    if child.f < G:
-                        if child.tile == end:
-                            goal_path.append(child.tile)
-                            node = child
-                            while node.parent is not None:
-                                node = node.parent
-                                goal_path.append(node.tile)
-                            return goal_path
-                        else:
-                            open_list.append(child)
-            if child not in open_list:
-                if child.f < G:
-                    if child.tile == end:
+            cost_fw(child, w, end)
+            if not open_list.contains(child) or child.g < open_list.get(child).g:
+                if child.g + child.h < G:
+                    if child.tile.position == end.position:
                         goal_path.append(child.tile)
                         node = child
                         while node.parent is not None:
@@ -196,7 +238,10 @@ def improved_solution(open_list, w, G, end):
                             goal_path.append(node.tile)
                         return goal_path
                     else:
-                        open_list.append(child)
+                        if open_list.contains(child):
+                            open_list.update(child)
+                        else:
+                            open_list.push(child)
     return None # no solution better than G exists
 
 
@@ -204,11 +249,10 @@ def improved_solution(open_list, w, G, end):
 
 def simplified_anytime_repairing(start, end, w, d):
     G = 999999999999999
-    open_list = []
+    open_list = Queue()
     start_node = Node(None, start)
 
-    open_list.append(start_node)
-    heapq.heapify(open_list)
+    open_list.push(start_node)
 
     while len(open) > 0:
         new_solution = improved_solution(open_list, w, G)
