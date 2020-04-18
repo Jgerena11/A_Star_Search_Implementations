@@ -1,6 +1,5 @@
 import pygame
 import random
-from shapely.geometry import LinearRing, LineString, Point, Polygon
 import heapq
 import math
 import re
@@ -9,6 +8,7 @@ pygame.init()
 X = 1000
 Y = 700
 BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 GREEN = (0, 200, 0)
 bright_GREEN = (0, 255, 0)
@@ -79,7 +79,7 @@ class Environment:
                     tile.reachable_tiles.append(sqr)
                 if sqr.vertices == down:
                     tile.reachable_tiles.append(sqr)
-                if sqr.verties == lud:
+                if sqr.vertices == lud:
                     tile.reachable_tiles.append(sqr)
                 if sqr.vertices == rud:
                     tile.reachable_tiles.append(sqr)
@@ -109,6 +109,10 @@ class Environment:
 
         if self.end is not None:
             pygame.draw.polygon(screen, RED, self.end.vertices)
+
+    def print_solution(self, solution):
+        for node in solution:
+            pygame.draw.polygon(screen, BLUE, node.tile.vertices)
 
     def pick_start(self):
         mouse = pygame.mouse.get_pos()
@@ -144,37 +148,46 @@ class Environment:
 
 
 class Queue:
-    open_list = []
-    open_list.heapify()
+    li = []
+    heapq.heapify(li)
 
     def push(self, node):
-        heapq.heappush(self.open_list, node)
+        heapq.heappush(self.li, node)
 
     def pop(self, *nodes):
         if len(nodes) == 0:
-            node = heapq.heappop(self.open_list)
+            node = heapq.heappop(self.li)
             return node
         else:
-            node = self.get(nodes[0])
-            heapq.heappop(node)
+            for i in range(0, len(self.li)):
+                if self.li[i].position == nodes[0].position:
+                    node = self.li[i]
+                    self.li[i] = self.li[-1]
+                    self.li.pop()
+                    heapq.heapify(self.li)
             return node
 
     def update(self, child):
         node = self.get(child)
         heapq.heappop(node)
-        heapq.heapush(child)
+        heapq.heapush(self.li, child)
 
     def contains(self, child):
-        for node in self.open_list:
+        for node in self.li:
             if node.position == child.position:
                 return True
         return False
 
     def get(self, child):
-        for node in self.open_list:
+        for node in self.li:
             if node.position == child.position:
                 return node
         return None
+
+    def prune(self, G):
+        for node in self.li:
+            if node.g + node.h <= G:
+                self.pop(node)
 
 
 class Node:
@@ -188,6 +201,14 @@ class Node:
 
     def __lt__(self, other):
         return self.f < other.f
+
+
+class Solution:
+    path = []
+    cost = 0
+
+    def add_to_path(self, node):
+        self.path.insert(0, node.tile)
 
 
 def distance(pos1, pos2):
@@ -204,7 +225,6 @@ def cost_fw(node, w, end):
     g = distance(current_tile.position, child_tile.position)
     h = distance(child_tile.position, end.position)
     f = g + (w * h)
-
     return f
 
 
@@ -219,10 +239,8 @@ def get_children(parent_node):
 
 
 def improved_solution(open_list, w, G, end):
-    goal_path = []
-
-    while len(open_list) > 0:
-        current_node = open_list.pop # pop the node with lowest f(w)
+    while len(open_list.li) > 0:
+        current_node = open_list.pop() # pop the node with lowest f(w)
 
         if G <= current_node.f:
             return None # G is proven to be w admissible
@@ -231,12 +249,14 @@ def improved_solution(open_list, w, G, end):
             if not open_list.contains(child) or child.g < open_list.get(child).g:
                 if child.g + child.h < G:
                     if child.tile.position == end.position:
-                        goal_path.append(child.tile)
+                        solution = Solution()
+                        solution.cost = child.g
+                        solution.add_to_path(child)
                         node = child
                         while node.parent is not None:
                             node = node.parent
-                            goal_path.append(node.tile)
-                        return goal_path
+                            solution.add_to_path(node)
+                        return solution
                     else:
                         if open_list.contains(child):
                             open_list.update(child)
@@ -245,20 +265,38 @@ def improved_solution(open_list, w, G, end):
     return None # no solution better than G exists
 
 
-
-
-def simplified_anytime_repairing(start, end, w, d):
+def simplified_anytime_repairing(start, end, w, dw):
     G = 999999999999999
     open_list = Queue()
+    incumbent = None
     start_node = Node(None, start)
-
     open_list.push(start_node)
 
-    while len(open) > 0:
-        new_solution = improved_solution(open_list, w, G)
+    while len(open_list.li) > 0:
+        new_solution = improved_solution(open_list, w, G, end)
+        if new_solution is not None:
+            G = new_solution.cost
+            incumbent = new_solution
+        else:
+            return incumbent
+        w = w - dw
+        open_list.prune(G)
+    return incumbent
+
+
+carryOn = True
+clock = pygame.time.Clock()
+env_generated = False
+solution_found = False
+start_picked = False
+end_picked = False
+env = Environment()
+w = 100
+dw = 10
 
 
 def gui():
+    global solution_found
     font = pygame.font.Font('freesansbold.ttf', 30)
     pygame.draw.rect(screen, BLACK, (100, 0, 250, 100), 3)
     #pygame.draw.rect(screen, BLACK, (400, 0, 250, 100), 3)
@@ -277,13 +315,18 @@ def gui():
         pygame.draw.rect(screen, RED, (850, 50, 100, 40))
     screen.blit(font.render('quit', True, BLACK, RED), (875, 55))
 
+    if not solution_found:
+        if 710 + 100 > mouse[0] > 710 and 50 + 40 > mouse[1] > 50:
+            pygame.draw.rect(screen, bright_GREEN, (710, 50, 100, 40))
+            if click[0] == 1:
+                solution = simplified_anytime_repairing(env.start, env.end, w, dw)
+                solution_found = True
+        else:
+            pygame.draw.rect(screen, GREEN, (710, 50, 100, 40))
+    else:
+        pygame.draw.rect(screen, bright_GREEN, (710, 50, 100, 40))
+    screen.blit(font.render('start', True, BLACK, GREEN), (725, 55))
 
-carryOn = True
-clock = pygame.time.Clock()
-env_generated = False
-start_picked = False
-end_picked = False
-env = Environment()
 
 while carryOn:
     # --- Main event loop -----------
