@@ -16,6 +16,7 @@ RED = (200, 0, 0)
 bright_RED = (255, 0, 0)
 size = (X, Y)
 screen = pygame.display.set_mode(size)
+env = None
 
 class Environment:
     square_list = []
@@ -40,6 +41,8 @@ class Environment:
             self.x2 = vertices[1][0]
             self.y1 = vertices[0][1]
             self.y2 = vertices[2][1]
+            self.x_coord = x_coord
+            self.y_coord = y_coord
             self.position = (x_coord, y_coord)
 
     def generate(self):
@@ -59,39 +62,18 @@ class Environment:
             y += 50
             y_coord += 1
 
-        for tile in self.square_list:
-            temp = [(tile.x1, tile.y1), (tile.x2, tile.y1), (tile.x2, tile.y2), (tile.x1, tile.y2)]
-            right = [(tile.x1 + 50, tile.y1), (tile.x2 + 50, tile.y1), (tile.x2 + 50, tile.y2), (tile.x1 + 50, tile.y2)]
-            left = [(tile.x1 - 50, tile.y1), (tile.x2 - 50, tile.y1), (tile.x2 - 50, tile.y2), (tile.x1 - 50, tile.y2)]
-            up = [(tile.x1, tile.y1 - 50), (tile.x2, tile.y1 - 50), (tile.x2, tile.y2 - 50), (tile.x1, tile.y2 - 50)]
-            down = [(tile.x1, tile.y1 + 50), (tile.x2, tile.y1 + 50), (tile.x2, tile.y2 + 50), (tile.x1, tile.y2 + 50)]
-            lud = [(tile.x1 - 50, tile.y1 - 50), (tile.x2 - 50, tile.y1 - 50), (tile.x2 - 50, tile.y2 -50), (tile.x1 - 50, tile.y2 - 50)]
-            rud = [(tile.x1 + 50, tile.y1 - 50), (tile.x2 + 50, tile.y1 - 50), (tile.x2 + 50 , tile.y2 - 50), (tile.x1 + 50, tile.y2 - 50)]
-            lld = [(tile.x1 - 50, tile.y1 + 50), (tile.x2 - 50, tile.y1 + 50), (tile.x2 - 50, tile.y2 + 50), (tile.x1 - 50, tile.y2 + 50)]
-            rld = [(tile.x1 + 50, tile.y1 + 50), (tile.x2 + 50, tile.y1 + 50), (tile.x2 + 50, tile.y2 + 50), (tile.x1 + 50, tile.y2 + 50)]
-
-            for sqr in self.square_list:
-                if sqr.vertices == right:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == left:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == up:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == down:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == lud:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == rud:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == lld:
-                    tile.reachable_tiles.append(sqr)
-                if sqr.vertices == rld:
-                    tile.reachable_tiles.append(sqr)
-
         for i in range(0, int(len(self.square_list) / 3)):
             pick = random.choice(self.square_list)
             pick.active = False
             self.blocked_squares.append(pick)
+
+    def regenerate(self):
+        self.square_list = []
+        self.active_squares = []
+        self.blocked_squares = []
+        self.start = None
+        self.end = None
+        self.generate()
 
     def print_env(self):
         # ------------ grid lines ----------------
@@ -111,8 +93,8 @@ class Environment:
             pygame.draw.polygon(screen, RED, self.end.vertices)
 
     def print_solution(self, solution):
-        for node in solution:
-            pygame.draw.polygon(screen, BLUE, node.tile.vertices)
+        for node in solution.path:
+            pygame.draw.polygon(screen, BLUE, node.vertices)
 
     def pick_start(self):
         mouse = pygame.mouse.get_pos()
@@ -133,7 +115,6 @@ class Environment:
         click = pygame.mouse.get_pressed()
 
         if click[0] == 1:
-            print('clicked')
             for square in self.square_list:
                 if square.active:
                     if square.x1 < mouse[0] < square.x2 and square.y1 < mouse[1] < square.y2:
@@ -145,6 +126,46 @@ class Environment:
                             return True
                     else:
                         continue
+
+    def get_neighboring_tiles(self, tile):
+        tile.reachable_tiles = []
+
+        right = (tile.x_coord + 1, tile.y_coord)
+        left = (tile.x_coord - 1, tile.y_coord)
+        up = (tile.x_coord, tile.y_coord - 1)
+        down = (tile.x_coord, tile.y_coord + 1)
+        lud = (tile.x_coord - 1, tile.y_coord - 1)
+        rud = (tile.x_coord + 1, tile.y_coord - 1)
+        lld = (tile.x_coord - 1, tile.y_coord + 1)
+        rld = (tile.x_coord + 1, tile.y_coord + 1)
+
+        for sqr in self.square_list:
+            if sqr.position == right:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == left:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == up:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == down:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == lud:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == rud:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == lld:
+                tile.reachable_tiles.append(sqr)
+                continue
+            if sqr.position == rld:
+                tile.reachable_tiles.append(sqr)
+                continue
+
+        return tile.reachable_tiles
 
 
 class Queue:
@@ -159,18 +180,19 @@ class Queue:
             node = heapq.heappop(self.li)
             return node
         else:
-            for i in range(0, len(self.li)):
+            i = 0
+            for node in self.li:
                 if self.li[i].position == nodes[0].position:
                     node = self.li[i]
-                    self.li[i] = self.li[-1]
-                    self.li.pop()
+                    self.li.pop(i)
                     heapq.heapify(self.li)
-            return node
+                    return node
+                i = i + 1
+            return None
 
     def update(self, child):
-        node = self.get(child)
-        heapq.heappop(node)
-        heapq.heapush(self.li, child)
+        self.pop(child)
+        heapq.heappush(self.li, child)
 
     def contains(self, child):
         for node in self.li:
@@ -218,20 +240,34 @@ def distance(pos1, pos2):
     return d
 
 
-def cost_fw(node, w, end):
-    current_tile = node.parent.tile
-    child_tile = node.tile
+def g_cost(node):
+    if node.parent is not None:
+        g = node.parent.g + distance(node.parent.position, node.position)
+        return g
+    else:
+        g = 0
+        return g
 
-    g = distance(current_tile.position, child_tile.position)
-    h = distance(child_tile.position, end.position)
+
+def h_cost(node, end):
+    h = distance(node.position, end.position)
+    return h
+
+
+def cost_fw(node, w, end):
+    current_node = node.parent
+    child = node
+
+    g = g_cost(child)
+    h = distance(child.position, end.position)
     f = g + (w * h)
     return f
 
 
 def get_children(parent_node):
     children = []
-    tile = parent_node.tile
-    for t in tile.reachable_tiles:
+    reachable_tiles = env.get_neighboring_tiles(parent_node.tile)
+    for t in reachable_tiles:
         if t.active:
             node = Node(parent_node, t)
             children.append(node)
@@ -242,13 +278,14 @@ def improved_solution(open_list, w, G, end):
     while len(open_list.li) > 0:
         current_node = open_list.pop() # pop the node with lowest f(w)
 
-        if G <= current_node.f:
+        if G <= cost_fw(current_node, w, end):
             return None # G is proven to be w admissible
         for child in get_children(current_node):
-            cost_fw(child, w, end)
-            if not open_list.contains(child) or child.g < open_list.get(child).g:
+            if not open_list.contains(child) or g_cost(child) < g_cost(open_list.get(child)):
+                child.g = g_cost(child)
+                child.h = h_cost(child, end)
                 if child.g + child.h < G:
-                    if child.tile.position == end.position:
+                    if child.position == end.position:
                         solution = Solution()
                         solution.cost = child.g
                         solution.add_to_path(child)
@@ -273,6 +310,7 @@ def simplified_anytime_repairing(start, end, w, dw):
     open_list.push(start_node)
 
     while len(open_list.li) > 0:
+        print('here')
         new_solution = improved_solution(open_list, w, G, end)
         if new_solution is not None:
             G = new_solution.cost
@@ -286,46 +324,87 @@ def simplified_anytime_repairing(start, end, w, dw):
 
 carryOn = True
 clock = pygame.time.Clock()
+env = None
 env_generated = False
 solution_found = False
+solution = None
 start_picked = False
 end_picked = False
-env = Environment()
+# env = Environment()
 w = 100
 dw = 10
 
 
 def gui():
     global solution_found
+    global solution
+    global env
+    global env_generated
+
     font = pygame.font.Font('freesansbold.ttf', 30)
-    pygame.draw.rect(screen, BLACK, (100, 0, 250, 100), 3)
-    #pygame.draw.rect(screen, BLACK, (400, 0, 250, 100), 3)
+    pygame.draw.rect(screen, BLACK, (25, 0, 250, 100), 3)
+    pygame.draw.rect(screen, BLACK, (300, 0, 300, 100), 3)
     pygame.draw.rect(screen, BLACK, (625, 0, 350, 100), 3)
 
     screen.blit(font.render('Controls', True, BLACK, WHITE), (720, 10))
+    screen.blit(font.render('Environment', True, BLACK, WHITE), (340, 10))
 
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
 
-    if 850 + 100 > mouse[0] > 850 and 50 + 40 > mouse[1] > 50:
-        pygame.draw.rect(screen, bright_RED, (850, 50, 100, 40))
+    # quit button
+    if 860 + 100 > mouse[0] > 860 and 50 + 40 > mouse[1] > 50:
+        pygame.draw.rect(screen, bright_RED, (860, 50, 100, 40))
         if click[0] == 1:
             pygame.quit()
     else:
-        pygame.draw.rect(screen, RED, (850, 50, 100, 40))
-    screen.blit(font.render('quit', True, BLACK, RED), (875, 55))
+        pygame.draw.rect(screen, RED, (860, 50, 100, 40))
+    screen.blit(font.render('quit', True, BLACK, RED), (885, 55))
 
+    # start button
     if not solution_found:
-        if 710 + 100 > mouse[0] > 710 and 50 + 40 > mouse[1] > 50:
-            pygame.draw.rect(screen, bright_GREEN, (710, 50, 100, 40))
+        if 750 + 100 > mouse[0] > 740 and 50 + 40 > mouse[1] > 50:
+            pygame.draw.rect(screen, bright_GREEN, (750, 50, 100, 40))
             if click[0] == 1:
+                print('beginning solution search')
                 solution = simplified_anytime_repairing(env.start, env.end, w, dw)
                 solution_found = True
         else:
-            pygame.draw.rect(screen, GREEN, (710, 50, 100, 40))
+            pygame.draw.rect(screen, GREEN, (750, 50, 100, 40))
     else:
-        pygame.draw.rect(screen, bright_GREEN, (710, 50, 100, 40))
-    screen.blit(font.render('start', True, BLACK, GREEN), (725, 55))
+        if solution is None:
+            font = pygame.font.Font('freesansbold.ttf', 45)
+            screen.blit(font.render('Solution not Found', True, RED, (X / 2, Y / 2)))
+        if solution is not None:
+            print('solution found')
+            env.print_solution(solution)
+        pygame.draw.rect(screen, bright_GREEN, (750, 50, 100, 40))
+    screen.blit(font.render('start', True, BLACK, GREEN), (760, 55))
+
+    # reset
+    if 640 + 100 > mouse[0] > 640 and 50 + 40 > mouse[1] > 50:
+        pygame.draw.rect(screen, bright_GREEN, (640, 50, 100, 40))
+        if click[0] == 1:
+            solution_found = False
+            solution = None
+
+            print('here')
+    else:
+        pygame.draw.rect(screen, GREEN, (640, 50, 100, 40))
+    screen.blit(font.render('reset', True, BLACK, GREEN), (650, 55))
+
+    #new env
+    if 310 + 100 > mouse[0] > 310 and 50 + 40 > mouse[1] > 50:
+        pygame.draw.rect(screen, bright_GREEN, (310, 50, 100, 40))
+        if click[0] == 1:
+            #env.regenerate()
+            env = Environment()
+            env_generated = False
+            solution = None
+            solution_found = False
+    else:
+        pygame.draw.rect(screen, GREEN, (310, 50, 100, 40))
+    screen.blit(font.render('new', True, BLACK, GREEN), (330, 55))
 
 
 while carryOn:
@@ -336,17 +415,20 @@ while carryOn:
     screen.fill(WHITE)
 
     if not env_generated:
+        env = Environment()
         env.generate()
         env_generated = True
     else:
         env.print_env()
 
-    if env.start is None:
+    if not start_picked:
         if env.pick_start():
+            start_picked = True
             continue
 
-    elif env.end is None:
+    elif not end_picked:
         if env.pick_end():
+            end_picked = True
             continue
 
     gui()
