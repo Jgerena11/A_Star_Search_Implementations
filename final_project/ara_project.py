@@ -208,7 +208,7 @@ class Queue:
 
     def prune(self, G):
         for node in self.li:
-            if node.g + node.h <= G:
+            if node.g + node.h >= G:
                 self.pop(node)
 
 
@@ -340,6 +340,8 @@ def gui():
     global solution
     global env
     global env_generated
+    global start_picked
+    global end_picked
 
     font = pygame.font.Font('freesansbold.ttf', 30)
     pygame.draw.rect(screen, BLACK, (25, 0, 250, 100), 3)
@@ -397,11 +399,12 @@ def gui():
     if 310 + 100 > mouse[0] > 310 and 50 + 40 > mouse[1] > 50:
         pygame.draw.rect(screen, bright_GREEN, (310, 50, 100, 40))
         if click[0] == 1:
-            #env.regenerate()
-            env = Environment()
-            env_generated = False
+            env.regenerate()
+            # env_generated = False
             solution = None
             solution_found = False
+            start_picked = False
+            end_picked = False
     else:
         pygame.draw.rect(screen, GREEN, (310, 50, 100, 40))
     screen.blit(font.render('new', True, BLACK, GREEN), (330, 55))
