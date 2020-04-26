@@ -16,25 +16,19 @@ RED = (200, 0, 0)
 bright_RED = (255, 0, 0)
 size = (X, Y)
 screen = pygame.display.set_mode(size)
-env = None
+
 
 class Environment:
-    square_list = []
-    active_squares = []
-    blocked_squares = []
-    start = None
-    end = None
+
+    def __init__(self):
+        self.square_list = []
+        self.active_squares = []
+        self.blocked_squares = []
+        self.start = None
+        self.end = None
+        self.solution = None
 
     class Square:
-        reachable_tiles = []
-        x1 = 0
-        x2 = 0
-        y1 = 0
-        y2 = 0
-        vertices = []
-        position = None
-        active = True
-
         def __init__(self, vertices, x_coord, y_coord):
             self.vertices = vertices
             self.x1 = vertices[0][0]
@@ -44,6 +38,8 @@ class Environment:
             self.x_coord = x_coord
             self.y_coord = y_coord
             self.position = (x_coord, y_coord)
+            self.reachable_tiles = []
+            self.active = True
 
     def generate(self):
         y_coord = 1
@@ -66,6 +62,13 @@ class Environment:
             pick = random.choice(self.square_list)
             pick.active = False
             self.blocked_squares.append(pick)
+
+    def clear(self):
+        for sqr in self.square_list:
+            sqr.active = True
+        self.blocked_squares = []
+        self.start = None
+        self.end = None
 
     def regenerate(self):
         self.square_list = []
@@ -92,8 +95,9 @@ class Environment:
         if self.end is not None:
             pygame.draw.polygon(screen, RED, self.end.vertices)
 
-    def print_solution(self, solution):
-        for node in solution.path:
+    @staticmethod
+    def print_solution(sol):
+        for node in sol.path:
             pygame.draw.polygon(screen, BLUE, node.vertices)
 
     def pick_start(self):
@@ -169,8 +173,10 @@ class Environment:
 
 
 class Queue:
-    li = []
-    heapq.heapify(li)
+
+    def __init__(self):
+        self.li = []
+        heapq.heapify(self.li)
 
     def push(self, node):
         heapq.heappush(self.li, node)
@@ -226,8 +232,9 @@ class Node:
 
 
 class Solution:
-    path = []
-    cost = 0
+    def __init__(self):
+        self.path = []
+        self.cost = 0
 
     def add_to_path(self, node):
         self.path.insert(0, node.tile)
@@ -284,16 +291,17 @@ def improved_solution(open_list, w, G, end):
             if not open_list.contains(child) or g_cost(child) < g_cost(open_list.get(child)):
                 child.g = g_cost(child)
                 child.h = h_cost(child, end)
+                child.f = cost_fw(child, w, end)
                 if child.g + child.h < G:
                     if child.position == end.position:
-                        solution = Solution()
-                        solution.cost = child.g
-                        solution.add_to_path(child)
+                        soln = Solution()
+                        soln.cost = child.g
+                        soln.add_to_path(child)
                         node = child
                         while node.parent is not None:
                             node = node.parent
-                            solution.add_to_path(node)
-                        return solution
+                            soln.add_to_path(node)
+                        return soln
                     else:
                         if open_list.contains(child):
                             open_list.update(child)
@@ -304,6 +312,7 @@ def improved_solution(open_list, w, G, end):
 
 def simplified_anytime_repairing(start, end, w, dw):
     G = 999999999999999
+
     open_list = Queue()
     incumbent = None
     start_node = Node(None, start)
@@ -324,32 +333,99 @@ def simplified_anytime_repairing(start, end, w, dw):
 
 carryOn = True
 clock = pygame.time.Clock()
-env = None
 env_generated = False
 solution_found = False
 solution = None
 start_picked = False
 end_picked = False
-# env = Environment()
-w = 100
-dw = 10
+env = Environment()
+
+input_font = pygame.font.Font(None, 25)
+
+text1 = ''
+input_box1 = pygame.Rect(60, 20, 175, 30)
+active1 = False
+w = 0
+
+input_box2 = pygame.Rect(60, 60, 175, 30)
+text2 = ''
+active2 = False
+dw = 0
 
 
-def gui():
-    global solution_found
-    global solution
-    global env
-    global env_generated
-    global start_picked
-    global end_picked
+while carryOn:
+    # --- Main event loop -----------
+    for event in pygame.event.get():  # User did something
+        if event.type == pygame.QUIT:  # If user clicked close
+            carryOn = False  # Flag that we are done so we exit this loop
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if input_box1.collidepoint(event.pos):
+                active1 = True
+            else:
+                active1 = False
+            if input_box2.collidepoint(event.pos):
+                active2 = True
+            else:
+                active2 = False
+            # color = color_active if active else color_inactive
+        if event.type == pygame.KEYDOWN:
+            if active1:
+                if event.key == pygame.K_RETURN:
+                    print(text1)
+                    text1 = ''
+                if event.key == pygame.K_BACKSPACE:
+                    text1 = text1[:-1]
+                else:
+                    text1 += event.unicode
+            if active2:
+                if event.key == pygame.K_RETURN:
+                    text1 = ''
+                if event.key == pygame.K_BACKSPACE:
+                    text2 = text2[:-1]
+                else:
+                    text2 += event.unicode
+    screen.fill(WHITE)
+
+    numbers1 = input_font.render(text1, True, BLACK)
+    screen.blit(numbers1, (input_box1.x + 5, input_box1.y + 5))
+    pygame.draw.rect(screen, BLACK, input_box1, 2)
+    w = float(text1) if re.match(r"[0-9]", text1) else 0
+
+
+    numbers2 = input_font.render(text2, True, BLACK)
+    screen.blit(numbers2, (input_box2.x + 5, input_box2.y + 5))
+    pygame.draw.rect(screen, BLACK, input_box2, 2)
+    dw = float(text2) if re.match(r"[0-9]", text2) else 0
+
+
+    if not env_generated:
+        env.generate()
+        env_generated = True
+    else:
+        env.print_env()
+
+    if not start_picked:
+        if env.pick_start():
+            start_picked = True
+            continue
+
+    elif not end_picked:
+        if env.pick_end():
+            end_picked = True
+            continue
+
+    if solution_found:
+        env.print_solution(solution)
 
     font = pygame.font.Font('freesansbold.ttf', 30)
-    pygame.draw.rect(screen, BLACK, (25, 0, 250, 100), 3)
-    pygame.draw.rect(screen, BLACK, (300, 0, 300, 100), 3)
+    pygame.draw.rect(screen, BLACK, (0, 0, 250, 100), 3)
+    pygame.draw.rect(screen, BLACK, (250, 0, 375, 100), 3)
     pygame.draw.rect(screen, BLACK, (625, 0, 350, 100), 3)
 
     screen.blit(font.render('Controls', True, BLACK, WHITE), (720, 10))
     screen.blit(font.render('Environment', True, BLACK, WHITE), (340, 10))
+    screen.blit(font.render('W', True, BLACK, WHITE), (20, 20))
+    screen.blit(font.render('dW', True, BLACK, WHITE), (10, 60))
 
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
@@ -374,12 +450,6 @@ def gui():
         else:
             pygame.draw.rect(screen, GREEN, (750, 50, 100, 40))
     else:
-        if solution is None:
-            font = pygame.font.Font('freesansbold.ttf', 45)
-            screen.blit(font.render('Solution not Found', True, RED, (X / 2, Y / 2)))
-        if solution is not None:
-            print('solution found')
-            env.print_solution(solution)
         pygame.draw.rect(screen, bright_GREEN, (750, 50, 100, 40))
     screen.blit(font.render('start', True, BLACK, GREEN), (760, 55))
 
@@ -389,52 +459,40 @@ def gui():
         if click[0] == 1:
             solution_found = False
             solution = None
-
-            print('here')
+            env.start = None
+            env.end = None
+            start_picked = False
+            end_picked = False
     else:
         pygame.draw.rect(screen, GREEN, (640, 50, 100, 40))
     screen.blit(font.render('reset', True, BLACK, GREEN), (650, 55))
 
-    #new env
-    if 310 + 100 > mouse[0] > 310 and 50 + 40 > mouse[1] > 50:
-        pygame.draw.rect(screen, bright_GREEN, (310, 50, 100, 40))
+    # new env
+    if 260 + 100 > mouse[0] > 260 and 50 + 40 > mouse[1] > 50:
+        pygame.draw.rect(screen, bright_GREEN, (260, 50, 100, 40))
         if click[0] == 1:
-            env.regenerate()
-            # env_generated = False
             solution = None
             solution_found = False
             start_picked = False
             end_picked = False
+            env.regenerate()
     else:
-        pygame.draw.rect(screen, GREEN, (310, 50, 100, 40))
-    screen.blit(font.render('new', True, BLACK, GREEN), (330, 55))
+        pygame.draw.rect(screen, GREEN, (260, 50, 100, 40))
+    screen.blit(font.render('new', True, BLACK, GREEN), (270, 55))
 
-
-while carryOn:
-    # --- Main event loop -----------
-    for event in pygame.event.get():  # User did something
-        if event.type == pygame.QUIT:  # If user clicked close
-            carryOn = False  # Flag that we are done so we exit this loop
-    screen.fill(WHITE)
-
-    if not env_generated:
-        env = Environment()
-        env.generate()
-        env_generated = True
+    # clear
+    # new env
+    if 370 + 100 > mouse[0] > 370 and 50 + 40 > mouse[1] > 50:
+        pygame.draw.rect(screen, bright_GREEN, (370, 50, 100, 40))
+        if click[0] == 1:
+            solution = None
+            solution_found = False
+            start_picked = False
+            end_picked = False
+            env.clear()
     else:
-        env.print_env()
-
-    if not start_picked:
-        if env.pick_start():
-            start_picked = True
-            continue
-
-    elif not end_picked:
-        if env.pick_end():
-            end_picked = True
-            continue
-
-    gui()
+        pygame.draw.rect(screen, GREEN, (370, 50, 100, 40))
+    screen.blit(font.render('clear', True, BLACK, GREEN), (380, 55))
 
     pygame.display.flip()
 
