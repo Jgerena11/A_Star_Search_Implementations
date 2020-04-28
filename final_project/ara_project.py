@@ -3,10 +3,11 @@ import random
 import heapq
 import math
 import re
+import time
 
 pygame.init()
-X = 1000
-Y = 700
+X = 1100
+Y = 900
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
@@ -14,6 +15,7 @@ GREEN = (0, 200, 0)
 bright_GREEN = (0, 255, 0)
 RED = (200, 0, 0)
 bright_RED = (255, 0, 0)
+Grey = (105,105,105)
 size = (X, Y)
 screen = pygame.display.set_mode(size)
 
@@ -41,24 +43,29 @@ class Environment:
             self.reachable_tiles = []
             self.active = True
 
-    def generate(self):
+    def generate(self, n, d):
         y_coord = 1
-        y = 100
+        y = 0
         num = 0
-        while y < 700:
-            x = 0
+        y_max = 800
+        x_max = 1000
+        if n == 3:
+            y_max = 900
+            x_max = 1100
+        while y < y_max:
+            x = 200
             x_coord = 1
-            while x < 1000:
-                points = [(x, y), (x + 50, y), (x + 50, y + 50), (x, y + 50)]
+            while x < x_max:
+                points = [(x, y), (x + n, y), (x + n, y + n), (x, y + n)]
                 square = self.Square(points, x_coord, y_coord)
                 self.square_list.append(square)
                 num += 1
-                x += 50
+                x += n
                 x_coord += 1
-            y += 50
+            y += n
             y_coord += 1
 
-        for i in range(0, int(len(self.square_list) / 3)):
+        for i in range(0, int(len(self.square_list) * d)):
             pick = random.choice(self.square_list)
             pick.active = False
             self.blocked_squares.append(pick)
@@ -70,24 +77,28 @@ class Environment:
         self.start = None
         self.end = None
 
-    def regenerate(self):
+    def regenerate(self, n, d):
         self.square_list = []
         self.active_squares = []
         self.blocked_squares = []
         self.start = None
         self.end = None
-        self.generate()
+        self.generate(n, d)
 
-    def print_env(self):
+    def print_env(self, n):
         # ------------ grid lines ----------------
-        for i in range(50, 1000, 50):
-            pygame.draw.line(screen, BLACK, [i, 100], [i, 700], 1)
+        for i in range(200, 1100, n):
+            pygame.draw.line(screen, BLACK, [i, 0], [i, 900], 1)
 
-        for i in range(100, 700, 50):
-            pygame.draw.line(screen, BLACK, [0, i], [1000, i])
+        for i in range(0, 900, n):
+            pygame.draw.line(screen, BLACK, [200, i], [1100, i])
 
         for i in range(0, len(self.blocked_squares)):
             pygame.draw.polygon(screen, BLACK, self.blocked_squares[i].vertices)
+
+        if n != 3:
+            pygame.draw.rect(screen, Grey, (1000, 0, 100, 900))
+            pygame.draw.rect(screen, Grey, (200, 800, 900, 100))
 
         if self.start is not None:
             pygame.draw.polygon(screen, GREEN, self.start.vertices)
@@ -104,11 +115,9 @@ class Environment:
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
         if click[0] == 1:
-            print('clicked')
             for square in self.square_list:
                 if square.active:
                     if square.x1 < mouse[0] < square.x2 and square.y1 < mouse[1] < square.y2:
-                        print(mouse)
                         self.start = square
                         return True
                 else:
@@ -125,7 +134,6 @@ class Environment:
                         if square == self.start:
                             continue
                         else:
-                            print(mouse)
                             self.end = square
                             return True
                     else:
@@ -319,7 +327,6 @@ def simplified_anytime_repairing(start, end, w, dw):
     open_list.push(start_node)
 
     while len(open_list.li) > 0:
-        print('here')
         new_solution = improved_solution(open_list, w, G, end)
         if new_solution is not None:
             G = new_solution.cost
@@ -328,6 +335,7 @@ def simplified_anytime_repairing(start, end, w, dw):
             return incumbent
         w = w - dw
         open_list.prune(G)
+
     return incumbent
 
 
@@ -340,14 +348,20 @@ start_picked = False
 end_picked = False
 env = Environment()
 
+int_size = 8
+map_size = '100x100'
+
+density = 0.1
+curr_density = '10%'
+
 input_font = pygame.font.Font(None, 25)
 
 text1 = ''
-input_box1 = pygame.Rect(60, 20, 175, 30)
+input_box1 = pygame.Rect(60, 20, 125, 30)
 active1 = False
 w = 0
 
-input_box2 = pygame.Rect(60, 60, 175, 30)
+input_box2 = pygame.Rect(60, 60, 125, 30)
 text2 = ''
 active2 = False
 dw = 0
@@ -371,7 +385,6 @@ while carryOn:
         if event.type == pygame.KEYDOWN:
             if active1:
                 if event.key == pygame.K_RETURN:
-                    print(text1)
                     text1 = ''
                 if event.key == pygame.K_BACKSPACE:
                     text1 = text1[:-1]
@@ -391,18 +404,16 @@ while carryOn:
     pygame.draw.rect(screen, BLACK, input_box1, 2)
     w = float(text1) if re.match(r"[0-9]", text1) else 0
 
-
     numbers2 = input_font.render(text2, True, BLACK)
     screen.blit(numbers2, (input_box2.x + 5, input_box2.y + 5))
     pygame.draw.rect(screen, BLACK, input_box2, 2)
     dw = float(text2) if re.match(r"[0-9]", text2) else 0
 
-
     if not env_generated:
-        env.generate()
+        env.generate(int_size, density)
         env_generated = True
     else:
-        env.print_env()
+        env.print_env(int_size)
 
     if not start_picked:
         if env.pick_start():
@@ -410,6 +421,7 @@ while carryOn:
             continue
 
     elif not end_picked:
+
         if env.pick_end():
             end_picked = True
             continue
@@ -417,45 +429,57 @@ while carryOn:
     if solution_found:
         env.print_solution(solution)
 
-    font = pygame.font.Font('freesansbold.ttf', 30)
-    pygame.draw.rect(screen, BLACK, (0, 0, 250, 100), 3)
-    pygame.draw.rect(screen, BLACK, (250, 0, 375, 100), 3)
-    pygame.draw.rect(screen, BLACK, (625, 0, 350, 100), 3)
+    font = pygame.font.Font('freesansbold.ttf', 20)
+    fontc = pygame.font.Font('freesansbold.ttf', 17)
+    pygame.draw.rect(screen, BLACK, (0, 0, 200, 100), 3)
+    pygame.draw.rect(screen, BLACK, (0, 100, 200, 150), 3)
+    pygame.draw.rect(screen, BLACK, (0, 250, 200, 100), 3)
+    pygame.draw.rect(screen, BLACK, (0, 350, 200, 200), 3)
+    pygame.draw.rect(screen, BLACK, (0, 550, 200, 250), 3)
 
-    screen.blit(font.render('Controls', True, BLACK, WHITE), (720, 10))
-    screen.blit(font.render('Environment', True, BLACK, WHITE), (340, 10))
+    screen.blit(font.render('Controls', True, BLACK, WHITE), (40, 360))
+    screen.blit(font.render('Environment', True, BLACK, WHITE), (40, 110))
     screen.blit(font.render('W', True, BLACK, WHITE), (20, 20))
     screen.blit(font.render('dW', True, BLACK, WHITE), (10, 60))
+    screen.blit(font.render('Size: ', True, BLACK, WHITE), (20, 260))
+    screen.blit(font.render(map_size, True, BLACK, WHITE), (80, 260))
+    screen.blit(font.render('Obstacle Density', True, BLACK, WHITE), (20, 560))
+    screen.blit(fontc.render('Current: ', True, BLACK, WHITE), (30, 590))
+    screen.blit(fontc.render(curr_density, True, BLACK, WHITE), (110, 590))
+
 
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
 
     # quit button
-    if 860 + 100 > mouse[0] > 860 and 50 + 40 > mouse[1] > 50:
-        pygame.draw.rect(screen, bright_RED, (860, 50, 100, 40))
+    if 50 + 75 > mouse[0] > 50 and 480 + 40 > mouse[1] > 480:
+        pygame.draw.rect(screen, bright_RED, (50, 480, 75, 40))
         if click[0] == 1:
             pygame.quit()
     else:
-        pygame.draw.rect(screen, RED, (860, 50, 100, 40))
-    screen.blit(font.render('quit', True, BLACK, RED), (885, 55))
+        pygame.draw.rect(screen, RED, (50, 480, 75, 40))
+    screen.blit(font.render('quit', True, BLACK, RED), (60, 490))
 
     # start button
     if not solution_found:
-        if 750 + 100 > mouse[0] > 740 and 50 + 40 > mouse[1] > 50:
-            pygame.draw.rect(screen, bright_GREEN, (750, 50, 100, 40))
+        if 50 + 75 > mouse[0] > 50 and 430 + 40 > mouse[1] > 430:
+            pygame.draw.rect(screen, bright_GREEN, (50, 430, 75, 40))
             if click[0] == 1:
-                print('beginning solution search')
+                start_time = round(time.time() * 1000)
                 solution = simplified_anytime_repairing(env.start, env.end, w, dw)
+                end_time = round(time.time()*1000)
+                duration = end_time - start_time
+                print(duration/1000)
                 solution_found = True
         else:
-            pygame.draw.rect(screen, GREEN, (750, 50, 100, 40))
+            pygame.draw.rect(screen, GREEN, (50, 430, 75, 40))
     else:
-        pygame.draw.rect(screen, bright_GREEN, (750, 50, 100, 40))
-    screen.blit(font.render('start', True, BLACK, GREEN), (760, 55))
+        pygame.draw.rect(screen, bright_GREEN, (50, 430, 75, 40))
+    screen.blit(font.render('start', True, BLACK, GREEN), (60, 440))
 
     # reset
-    if 640 + 100 > mouse[0] > 640 and 50 + 40 > mouse[1] > 50:
-        pygame.draw.rect(screen, bright_GREEN, (640, 50, 100, 40))
+    if 50 + 75 > mouse[0] > 50 and 385 + 40 > mouse[1] > 385:
+        pygame.draw.rect(screen, bright_GREEN, (50, 385, 75, 40))
         if click[0] == 1:
             solution_found = False
             solution = None
@@ -464,26 +488,26 @@ while carryOn:
             start_picked = False
             end_picked = False
     else:
-        pygame.draw.rect(screen, GREEN, (640, 50, 100, 40))
-    screen.blit(font.render('reset', True, BLACK, GREEN), (650, 55))
+        pygame.draw.rect(screen, GREEN, (50, 385, 75, 40))
+    screen.blit(font.render('reset', True, BLACK, GREEN), (60, 395))
 
     # new env
-    if 260 + 100 > mouse[0] > 260 and 50 + 40 > mouse[1] > 50:
-        pygame.draw.rect(screen, bright_GREEN, (260, 50, 100, 40))
+    if 50 + 75 > mouse[0] > 50 and 140 + 40 > mouse[1] > 140:
+        pygame.draw.rect(screen, bright_GREEN, (50, 140, 75, 40))
         if click[0] == 1:
             solution = None
             solution_found = False
             start_picked = False
             end_picked = False
-            env.regenerate()
+            env.regenerate(int_size, density)
     else:
-        pygame.draw.rect(screen, GREEN, (260, 50, 100, 40))
-    screen.blit(font.render('new', True, BLACK, GREEN), (270, 55))
+        pygame.draw.rect(screen, GREEN, (50, 140, 75, 40))
+    screen.blit(font.render('new', True, BLACK, GREEN), (60, 150))
 
     # clear
     # new env
-    if 370 + 100 > mouse[0] > 370 and 50 + 40 > mouse[1] > 50:
-        pygame.draw.rect(screen, bright_GREEN, (370, 50, 100, 40))
+    if 50 + 75 > mouse[0] > 50 and 190 + 40 > mouse[1] > 190:
+        pygame.draw.rect(screen, bright_GREEN, (50, 190, 75, 40))
         if click[0] == 1:
             solution = None
             solution_found = False
@@ -491,8 +515,98 @@ while carryOn:
             end_picked = False
             env.clear()
     else:
-        pygame.draw.rect(screen, GREEN, (370, 50, 100, 40))
-    screen.blit(font.render('clear', True, BLACK, GREEN), (380, 55))
+        pygame.draw.rect(screen, GREEN, (50, 190, 75, 40))
+    screen.blit(font.render('clear', True, BLACK, GREEN), (50, 200))
+
+    # 100 x 100 button
+    if 10 + 50 > mouse[0] > 10 and 290 + 40 > mouse[1] > 290:
+        pygame.draw.rect(screen, bright_GREEN, (10, 290, 50, 40))
+        if click[0] == 1:
+            int_size = 8
+            map_size = '100x100'
+            solution = None
+            solution_found = False
+            start_picked = False
+            end_picked = False
+            env.regenerate(int_size, density)
+    else:
+        pygame.draw.rect(screen, GREEN, (10, 290, 50, 40))
+    screen.blit(font.render('100x', True, BLACK, GREEN), (10, 300))
+
+    # 200 x 200 button
+    if 70 + 50 > mouse[0] > 70 and 290 + 40 > mouse[1] > 290:
+        pygame.draw.rect(screen, bright_GREEN, (70, 290, 50, 40))
+        if click[0] == 1:
+            int_size = 4
+            map_size = '200x200'
+            solution = None
+            solution_found = False
+            start_picked = False
+            end_picked = False
+            env.regenerate(int_size, density)
+    else:
+        pygame.draw.rect(screen, GREEN, (70, 290, 50, 40))
+    screen.blit(font.render('200x', True, BLACK, GREEN), (70, 300))
+
+    # 300 x 300 button
+    if 130 + 50 > mouse[0] > 130 and 290 + 40 > mouse[1] > 290:
+        pygame.draw.rect(screen, bright_GREEN, (130, 290, 50, 40))
+        if click[0] == 1:
+            int_size = 3
+            map_size = '300x300'
+            solution = None
+            solution_found = False
+            start_picked = False
+            end_picked = False
+            env.regenerate(int_size, density)
+    else:
+        pygame.draw.rect(screen, GREEN, (130, 290, 50, 40))
+    screen.blit(font.render('300x', True, BLACK, GREEN), (130, 300))
+
+    # 10% button
+    if 10 + 50 > mouse[0] > 10 and 630 + 40 > mouse[1] > 630:
+        pygame.draw.rect(screen, bright_GREEN, (10, 630, 50, 40))
+        if click[0] == 1:
+            density = 0.10
+            curr_density = '10%'
+            solution = None
+            solution_found = None
+            start_picked = False
+            end_picked = False
+            env.regenerate(int_size, density)
+    else:
+        pygame.draw.rect(screen, GREEN, (10, 630, 50, 40))
+    screen.blit(font.render('10%', True, BLACK, GREEN), (10, 640))
+
+    # 20% button
+    if 70 + 50 > mouse[0] > 70 and 630 + 40 > mouse[1] > 630:
+        pygame.draw.rect(screen, bright_GREEN, (70, 630, 50, 40))
+        if click[0] == 1:
+            density = 0.20
+            curr_density = '20%'
+            solution = None
+            solution_found = None
+            start_picked = False
+            end_picked = False
+            env.regenerate(int_size, density)
+    else:
+        pygame.draw.rect(screen, GREEN, (70, 630, 50, 40))
+    screen.blit(font.render('20%', True, BLACK, GREEN), (70, 640))
+
+    # 30% button
+    if 130 + 50 > mouse[0] > 130 and 630 + 40 > mouse[1] > 630:
+        pygame.draw.rect(screen, bright_GREEN, (130, 630, 50, 40))
+        if click[0] == 1:
+            density = 0.30
+            curr_density = '30%'
+            solution = None
+            solution_found = None
+            start_picked = False
+            end_picked = False
+            env.regenerate(int_size, density)
+    else:
+        pygame.draw.rect(screen, GREEN, (130, 630, 50, 40))
+    screen.blit(font.render('30%', True, BLACK, GREEN), (130, 640))
 
     pygame.display.flip()
 
